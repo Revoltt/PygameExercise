@@ -5,6 +5,8 @@ import pygame
 import random
 
 SIZE = 640, 480
+BALLNUMBER = 3
+GRAVITY = 0.3
 
 def intn(*arg):
     return map(int,arg)
@@ -60,6 +62,7 @@ class Ball:
         '''Proceed some action'''
         if self.active:
             self.pos = self.pos[0]+self.speed[0], self.pos[1]+self.speed[1]
+            self.speed = self.speed[0], self.speed[1] + GRAVITY
 
     def logic(self, surface):
         x,y = self.pos
@@ -72,10 +75,10 @@ class Ball:
             dx = -dx
         if y < self.rect.height/2:
             y = self.rect.height/2
-            dy = -dy
+            dy = -dy + 2 * GRAVITY
         elif y > surface.get_height() - self.rect.height/2:
             y = surface.get_height() - self.rect.height/2
-            dy = -dy
+            dy = -dy + 2 * GRAVITY
         self.pos = x,y
         self.speed = dx,dy
         self.rect.center = intn(*self.pos)
@@ -122,12 +125,11 @@ class GameWithObjects(GameMode):
             obj.draw(surface)
 
 class GameWithDnD(GameWithObjects):
-
     def __init__(self, *argp, **argn):
         GameWithObjects.__init__(self, *argp, **argn)
         self.oldpos = 0,0
         self.drag = None
-
+        self.ballPressed = False
     def Events(self, event):
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
             click = self.locate(event.pos)
@@ -135,12 +137,15 @@ class GameWithDnD(GameWithObjects):
                 self.drag = click[0]
                 self.drag.active = False
                 self.oldpos = event.pos
+                self.ballPressed = True
         elif event.type == pygame.MOUSEMOTION and event.buttons[0]:
                 if self.drag:
                     self.drag.pos = event.pos
                     self.drag.speed = event.rel
         elif event.type == pygame.MOUSEBUTTONUP and event.button == 1:
-            self.drag.active = True
+            if self.ballPressed:
+                self.drag.active = True
+                self.ballPressed = False
             self.drag = None
         GameWithObjects.Events(self, event)
 
@@ -148,9 +153,9 @@ Init(SIZE)
 Game = Universe(50)
 
 Run = GameWithDnD()
-for i in xrange(5):
+for i in xrange(BALLNUMBER):
     x, y = random.randrange(screenrect.w), random.randrange(screenrect.h)
-    dx, dy = 1+random.random()*5, 1+random.random()*5
+    dx, dy = 1+random.random()*BALLNUMBER, 1+random.random()*BALLNUMBER
     Run.objects.append(Ball("ball.gif",(x,y),(dx,dy)))
 
 Game.Start()
@@ -166,3 +171,4 @@ while again:
     pygame.display.flip()
 Game.Finish()
 pygame.quit()
+
