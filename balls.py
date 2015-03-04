@@ -3,9 +3,10 @@
 
 import pygame
 import random
+import math
 
 SIZE = 640, 480
-BALLNUMBER = 3
+BALLNUMBER = 2
 GRAVITY = 0.3
 ANGLECONST = 5
 
@@ -85,6 +86,7 @@ class Ball:
         self.rect.center = intn(*self.pos)
 
 class BetterBall(Ball):
+    
     def __init__(self, filename, sizeMod, rotSpeed, pos = (0.0, 0.0), speed = (0.0, 0.0)):
         self.fname = filename
         temp = pygame.image.load(filename)
@@ -97,6 +99,7 @@ class BetterBall(Ball):
         self.newpos = pos
         self.active = True
         self.angle = rotSpeed
+    
     def rot_center(self, image, angle):
         orig_rect = image.get_rect()
         rot_image = pygame.transform.rotate(image, angle)
@@ -104,12 +107,12 @@ class BetterBall(Ball):
         rot_rect.center = rot_image.get_rect().center
         rot_image = rot_image.subsurface(rot_rect)
         return rot_image
+    
     def action(self):
-        #self.surface = pygame.transform.rotate(self.originalSurface, self.angle)
-        #self.rect = self.surface.get_rect()
         self.surface = self.rot_center(self.originalSurface, self.angle)
         self.angle = self.angle + ANGLECONST
         Ball.action(self)   
+    
     def logic(self, surface):
         Ball.logic(self, surface) 
            
@@ -134,15 +137,52 @@ class GameWithObjects(GameMode):
     def __init__(self, objects=[]):
         GameMode.__init__(self)
         self.objects = objects
+        self.newObjects = []
 
     def locate(self, pos):
         return [obj for obj in self.objects if obj.rect.collidepoint(pos)]
+    
+    def sqDistance (self, obj1, obj2):
+        return (obj1.rect.center[0] - obj2.rect.center[0])^2 + (obj1.rect.center[1] - obj2.rect.center[1])^2 
+    
+    def scalmul(self, vect1, vect2):
+        return vect1[0]*vect2[0] + vect1[1]*vect2[1]
+    
+    def length(self, vect):
+        return math.sqrt(vect[0] * vect[0] + vect[1] * vect[1])
+    
+    def collide(self, obj1, obj2):
+        centvect = (obj2.rect.center[0] - obj1.rect.center[0], obj2.rect.center[1] - obj1.rect.center[1])
+        if self.length(centvect) * 2 < obj1.rect.w + obj2.rect.w:
+            p = (self.scalmul(centvect, obj1.speed)/self.scalmul(centvect, centvect) * centvect[0],
+                 self.scalmul(centvect, obj1.speed)/self.scalmul(centvect, centvect) * centvect[1])
+            n = (obj1.speed[0] - p[0], obj1.speed[1] - p[1])
+            obj1.speed = (-p[0] + n[0], -p[1] + n[1])
+            
+            centvect = (obj1.rect.center[0] - obj2.rect.center[0], obj1.rect.center[1] - obj2.rect.center[1])
+            p = (self.scalmul(centvect, obj2.speed)/self.scalmul(centvect, centvect) * centvect[0],
+                 self.scalmul(centvect, obj2.speed)/self.scalmul(centvect, centvect) * centvect[1])
+            n = (obj2.speed[0] - p[0], obj2.speed[1] - p[1])
+            obj2.speed = (-p[0] + n[0], -p[1] + n[1])
+            obj1.rect = obj1.rect.move(-int(round(centvect[0] - centvect[0]/self.length(centvect)*(obj1.rect.w/2 + obj2.rect.w/2 + 1))),
+                                -int(round(centvect[1] - centvect[1]/self.length(centvect)*(obj1.rect.w/2 + obj2.rect.w/2 + 1))))
+            obj2.rect = obj2.rect.move(-int(round(-centvect[0] + centvect[0]/self.length(centvect)*(obj1.rect.w/2 + obj2.rect.w/2 + 1))),
+                                -int(round(-centvect[1] + centvect[1]/self.length(centvect)*(obj1.rect.w/2 + obj2.rect.w/2 + 1))))
 
+        return obj1, obj2    
     def Events(self, event):
         GameMode.Events(self, event)
         if event.type == Game.tickevent:
+            for i in xrange(len(self.objects)):
+                for j in xrange(len(self.objects)):
+                    if i != j:
+                        x, y = self.collide(self.objects[i], self.objects[j])
+                        self.objects[i] = x
+                        self.objects[j] = y
             for obj in self.objects:
                 obj.action()
+                       
+            
 
     def Logic(self, surface):
         GameMode.Logic(self, surface)
@@ -155,11 +195,13 @@ class GameWithObjects(GameMode):
             obj.draw(surface)
 
 class GameWithDnD(GameWithObjects):
+    
     def __init__(self, *argp, **argn):
         GameWithObjects.__init__(self, *argp, **argn)
         self.oldpos = 0,0
         self.drag = None
         self.ballPressed = False
+    
     def Events(self, event):
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
             click = self.locate(event.pos)
@@ -203,4 +245,3 @@ while again:
     pygame.display.flip()
 Game.Finish()
 pygame.quit()
-
