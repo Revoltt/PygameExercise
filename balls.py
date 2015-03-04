@@ -7,6 +7,7 @@ import random
 SIZE = 640, 480
 BALLNUMBER = 3
 GRAVITY = 0.3
+ANGLECONST = 5
 
 def intn(*arg):
     return map(int,arg)
@@ -83,6 +84,35 @@ class Ball:
         self.speed = dx,dy
         self.rect.center = intn(*self.pos)
 
+class BetterBall(Ball):
+    def __init__(self, filename, sizeMod, rotSpeed, pos = (0.0, 0.0), speed = (0.0, 0.0)):
+        self.fname = filename
+        temp = pygame.image.load(filename)
+        self.surface = pygame.transform.scale(temp, 
+                                              (int(temp.get_height() * sizeMod), int(temp.get_width() * sizeMod))) 
+        self.originalSurface = self.surface
+        self.rect = self.surface.get_rect()
+        self.speed = speed
+        self.pos = pos
+        self.newpos = pos
+        self.active = True
+        self.angle = rotSpeed
+    def rot_center(self, image, angle):
+        orig_rect = image.get_rect()
+        rot_image = pygame.transform.rotate(image, angle)
+        rot_rect = orig_rect
+        rot_rect.center = rot_image.get_rect().center
+        rot_image = rot_image.subsurface(rot_rect)
+        return rot_image
+    def action(self):
+        #self.surface = pygame.transform.rotate(self.originalSurface, self.angle)
+        #self.rect = self.surface.get_rect()
+        self.surface = self.rot_center(self.originalSurface, self.angle)
+        self.angle = self.angle + ANGLECONST
+        Ball.action(self)   
+    def logic(self, surface):
+        Ball.logic(self, surface) 
+           
 class Universe:
     '''Game universe'''
 
@@ -156,7 +186,9 @@ Run = GameWithDnD()
 for i in xrange(BALLNUMBER):
     x, y = random.randrange(screenrect.w), random.randrange(screenrect.h)
     dx, dy = 1+random.random()*BALLNUMBER, 1+random.random()*BALLNUMBER
-    Run.objects.append(Ball("ball.gif",(x,y),(dx,dy)))
+    size = random.random() / 2 + 0.5
+    speed = ANGLECONST
+    Run.objects.append(BetterBall("ball.gif", size, speed, (x,y),(dx,dy)))
 
 Game.Start()
 Run.Init()
