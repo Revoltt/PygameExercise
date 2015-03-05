@@ -6,9 +6,10 @@ import random
 import math
 
 SIZE = 640, 480
-BALLNUMBER = 2
+BALLNUMBER = 3
 GRAVITY = 0.3
 ANGLECONST = 5
+PIXCONST = 10
 
 def intn(*arg):
     return map(int,arg)
@@ -142,9 +143,6 @@ class GameWithObjects(GameMode):
     def locate(self, pos):
         return [obj for obj in self.objects if obj.rect.collidepoint(pos)]
     
-    def sqDistance (self, obj1, obj2):
-        return (obj1.rect.center[0] - obj2.rect.center[0])^2 + (obj1.rect.center[1] - obj2.rect.center[1])^2 
-    
     def scalmul(self, vect1, vect2):
         return vect1[0]*vect2[0] + vect1[1]*vect2[1]
     
@@ -152,24 +150,24 @@ class GameWithObjects(GameMode):
         return math.sqrt(vect[0] * vect[0] + vect[1] * vect[1])
     
     def collide(self, obj1, obj2):
-        centvect = (obj2.rect.center[0] - obj1.rect.center[0], obj2.rect.center[1] - obj1.rect.center[1])
-        if self.length(centvect) * 2 < obj1.rect.w + obj2.rect.w:
-            p = (self.scalmul(centvect, obj1.speed)/self.scalmul(centvect, centvect) * centvect[0],
-                 self.scalmul(centvect, obj1.speed)/self.scalmul(centvect, centvect) * centvect[1])
-            n = (obj1.speed[0] - p[0], obj1.speed[1] - p[1])
-            obj1.speed = (-p[0] + n[0], -p[1] + n[1])
-            
-            centvect = (obj1.rect.center[0] - obj2.rect.center[0], obj1.rect.center[1] - obj2.rect.center[1])
-            p = (self.scalmul(centvect, obj2.speed)/self.scalmul(centvect, centvect) * centvect[0],
-                 self.scalmul(centvect, obj2.speed)/self.scalmul(centvect, centvect) * centvect[1])
-            n = (obj2.speed[0] - p[0], obj2.speed[1] - p[1])
-            obj2.speed = (-p[0] + n[0], -p[1] + n[1])
-            obj1.rect = obj1.rect.move(-int(round(centvect[0] - centvect[0]/self.length(centvect)*(obj1.rect.w/2 + obj2.rect.w/2 + 1))),
-                                -int(round(centvect[1] - centvect[1]/self.length(centvect)*(obj1.rect.w/2 + obj2.rect.w/2 + 1))))
-            obj2.rect = obj2.rect.move(-int(round(-centvect[0] + centvect[0]/self.length(centvect)*(obj1.rect.w/2 + obj2.rect.w/2 + 1))),
-                                -int(round(-centvect[1] + centvect[1]/self.length(centvect)*(obj1.rect.w/2 + obj2.rect.w/2 + 1))))
-
-        return obj1, obj2    
+        centvect = (obj1.rect.center[0] - obj2.rect.center[0], obj1.rect.center[1] - obj2.rect.center[1])           
+        if self.length(centvect) * 2 < obj1.rect.w + obj2.rect.w and obj1.active and obj2.active:
+            dx, dy = obj1.speed[0] - obj2.speed[0], obj1.speed[1] - obj2.speed[1] 
+            x, y = obj2.pos[0] - obj1.pos[0], obj2.pos[1] - obj1.pos[1]     
+            mul = self.scalmul((dx, dy), (x, y)) / self.length((x, y))
+            norm = x / self.length((x, y)), y / self.length((x, y))
+            pulse = (dx - norm[0] * mul), (dy - norm[1] * mul)
+    
+            obj1.speed = pulse[0] + obj2.speed[0], pulse[1] + obj2.speed[1] 
+            obj2.speed = norm[0] * mul + obj2.speed[0], norm[1] * mul + obj2.speed[1]
+            obj1.rect = obj1.rect.move(-int(round(centvect[0] - centvect[0]/self.length(centvect)*(obj1.rect.w/2 + obj2.rect.w/2 + PIXCONST))),
+                             -int(round(centvect[1] - centvect[1]/self.length(centvect)*(obj1.rect.w/2 + obj2.rect.w/2 + PIXCONST))))
+            obj2.rect = obj2.rect.move(-int(round(-centvect[0] + centvect[0]/self.length(centvect)*(obj1.rect.w/2 + obj2.rect.w/2 + PIXCONST))),
+                              -int(round(-centvect[1] + centvect[1]/self.length(centvect)*(obj1.rect.w/2 + obj2.rect.w/2 + PIXCONST))))
+            obj1.action()
+            obj2.action()
+        return obj1, obj2
+         
     def Events(self, event):
         GameMode.Events(self, event)
         if event.type == Game.tickevent:
@@ -222,14 +220,14 @@ class GameWithDnD(GameWithObjects):
         GameWithObjects.Events(self, event)
 
 Init(SIZE)
-Game = Universe(50)
+Game = Universe(20)
 
 Run = GameWithDnD()
 for i in xrange(BALLNUMBER):
     x, y = random.randrange(screenrect.w), random.randrange(screenrect.h)
-    dx, dy = 1+random.random()*BALLNUMBER, 1+random.random()*BALLNUMBER
+    dx, dy = 0.1+random.random()*BALLNUMBER, 0.1+random.random()*BALLNUMBER
     size = random.random() / 2 + 0.5
-    speed = ANGLECONST
+    speed = random.randint(0, ANGLECONST)
     Run.objects.append(BetterBall("ball.gif", size, speed, (x,y),(dx,dy)))
 
 Game.Start()
